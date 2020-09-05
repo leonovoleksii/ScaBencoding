@@ -32,5 +32,15 @@ class ParseTest extends Specification {
 
       BenValue.parse("l10:somestringli314ee") must beFailedTry
     }
+
+    "decode bencoded dictionary" in {
+      BenValue.parse("d7:somekeyi314e12:someotherkeyli341eee") must beSuccessfulTry(
+        BenDictionary(Map(BenString("somekey") -> BenInteger(314L), BenString("someotherkey") -> BenList(List(BenInteger(341L))))))
+
+      BenValue.parse("d7:somekeyi314e12:someotherkeyd10:anotherkeyi341eee") must beSuccessfulTry(
+        BenDictionary(Map(BenString("somekey") -> BenInteger(314L), BenString("someotherkey") -> BenDictionary(Map(BenString("anotherkey") -> BenInteger(341L))))))
+
+      BenValue.parse("d7:somekeyi314e12:someotherkeyd10:anotherkeyi341ee") must beFailedTry
+    }
   }
 }

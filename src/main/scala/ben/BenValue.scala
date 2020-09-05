@@ -67,22 +67,16 @@ object BenValue {
       }
     }
 
-    def parseKey(s: String): Try[(BenString, String)] = {
-      s.head match {
-        case 'e' => Success(BenString(""), s)
-        case _ => benString(s)
-      }
-    }
-
-    for {
-      (benKey, remainder) <- parseKey(s)
-      benValue <- remainder.head match {
+    if (s.head == 'e') {
+      Try((BenDictionary(acc), s.tail))
+    } else for {
+      (benKey, remainder) <- benString(s)
+      benValue <- Try(remainder.head match {
         case c if c.isDigit => parse(benKey, remainder, benString)
         case 'i' => parse(benKey, remainder, benInteger)
         case 'l' => parse(benKey, remainder, s => benList(s.tail))
         case 'd' => parse(benKey, remainder, s => benDictionary(s.tail))
-        case 'e' => Try((BenDictionary(acc), s.tail))
-      }
+      }).flatten
     } yield benValue
   }
 }

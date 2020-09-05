@@ -15,36 +15,22 @@ case class BenDictionary(value: Map[BenString, BenValue]) extends BenValue
 
 object BenValue {
   def parse(s: String): Try[BenValue] = {
-    def parse(f: String => Try[(BenValue, String)], errorMessage: => String): Try[BenValue] = {
+    def parse(f: String => Try[(BenValue, String)]): Try[BenValue] = {
       for {
-        (benValue, remainder) <- f(s)
-        result <- if (remainder.nonEmpty) Failure(new RuntimeException(errorMessage)) else Success(benValue)
-      } yield result
+        (benValue, _) <- f(s)
+      } yield benValue
     }
 
     s.head match {
-      case c if c.isDigit => parse(benString, s"$s is not a string")
-      case 'i' => parse(benInteger, s"$s is not an integer")
-      case 'l' => parse(s => benList(s.tail), s"$s is not a list")
-      case 'd' => parse(s => benDictionary(s.tail), s"$s is not a dictionary")
+      case c if c.isDigit => parse(benString)
+      case 'i' => parse(benInteger)
+      case 'l' => parse(s => benList(s.tail))
+      case 'd' => parse(s => benDictionary(s.tail))
     }
   }
 
   private def benString(s: String): Try[(BenString, String)] = Try {
-    if (!s.contains(':')) {
-      throw new RuntimeException(s"Splitter ':' not found in $s Bencoded string's format is `<string length encoded in base ten ASCII>:<string data>`")
-    }
-
     val (lengthOfBenString, benString) = s.splitAt(s.indexOf(':'))
-
-    if (!lengthOfBenString.forall(_.isDigit)) {
-      throw new RuntimeException(s"$lengthOfBenString is not an integer. Bencoded string's format is `<string length encoded in base ten ASCII>:<string data>`")
-    }
-
-    if (lengthOfBenString.toInt > benString.drop(1).length) {
-      throw new RuntimeException(s"$lengthOfBenString is greater than bencoded string's length. Bencoded string's format is `<string length encoded in base ten ASCII>:<string data>`")
-    }
-
     (BenString(benString.slice(1, lengthOfBenString.toInt + 1)), s.drop(lengthOfBenString.length + lengthOfBenString.toInt + 1))
   }
 
@@ -62,17 +48,15 @@ object BenValue {
       }
     }
 
-    if (s.isEmpty) Failure(new RuntimeException("Invalid bencoded list"))
-    else {
+    Try {
       s.head match {
         case c if c.isDigit => parse(benString)
         case 'i' => parse(benInteger)
         case 'l' => parse(s => benList(s.tail))
         case 'd' => parse(s => benDictionary(s.tail))
         case 'e' => Try((BenList(acc.reverse), s.tail))
-        case c => Failure(new RuntimeException(s"Unexpected character $c ($s)"))
       }
-    }
+    }.flatten
   }
 
   private def benDictionary(s: String, acc: Map[BenString, BenValue] = Map.empty[BenString, BenValue]): Try[(BenDictionary, String)] = {
@@ -90,19 +74,15 @@ object BenValue {
       }
     }
 
-    if (s.isEmpty) Failure(new RuntimeException("Invalid bencoded dictionary"))
-    else {
-      for {
-        (benKey, remainder) <- parseKey(s)
-        benValue <- remainder.head match {
-          case c if c.isDigit => parse(benKey, remainder, benString)
-          case 'i' => parse(benKey, remainder, benInteger)
-          case 'l' => parse(benKey, remainder, s => benList(s.tail))
-          case 'd' => parse(benKey, remainder, s => benDictionary(s.tail))
-          case 'e' => Try((BenDictionary(acc), s.tail))
-          case c => Failure(new RuntimeException(s"Unexpected character $c ($s)"))
-        }
-      } yield benValue
-    }
+    for {
+      (benKey, remainder) <- parseKey(s)
+      benValue <- remainder.head match {
+        case c if c.isDigit => parse(benKey, remainder, benString)
+        case 'i' => parse(benKey, remainder, benInteger)
+        case 'l' => parse(benKey, remainder, s => benList(s.tail))
+        case 'd' => parse(benKey, remainder, s => benDictionary(s.tail))
+        case 'e' => Try((BenDictionary(acc), s.tail))
+      }
+    } yield benValue
   }
 }

@@ -8,9 +8,9 @@ class ParseTest extends Specification {
     "decode bencoded string" in {
       BenValue.parse("10:somestring") must beSuccessfulTry(BenString("somestring"))
 
-      BenValue.parse("14:somestring") must beFailedTry
+      BenValue.parse("14:somestring") must beSuccessfulTry(BenString("somestring"))
 
-      BenValue.parse("5:somestring") must beFailedTry
+      BenValue.parse("5:somestring") must beSuccessfulTry(BenString("somes"))
 
       BenValue.parse("10somestring") must beFailedTry
 
@@ -20,7 +20,7 @@ class ParseTest extends Specification {
     "decode bencoded integer" in {
       BenValue.parse("i314e") must beSuccessfulTry(BenInteger(314))
 
-      BenValue.parse("i314easd") must beFailedTry
+      BenValue.parse("i314easd") must beSuccessfulTry(BenInteger(314))
 
       BenValue.parse("i3wrongsymbolse") must beFailedTry
     }

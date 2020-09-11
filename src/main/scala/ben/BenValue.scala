@@ -50,7 +50,8 @@ object BenValue {
   }
 
   private[ben] def benInteger(s: String): (BenInteger, String) = {
-    val maybeNumber = s.drop(1).takeWhile(_ != 'e')
+    val end = s.indexOf('e')
+    val maybeNumber = s.slice(1, end)
     (BenInteger(maybeNumber.toLong), s.drop(maybeNumber.length + 2))
   }
 

@@ -23,6 +23,8 @@ class ParseTest extends Specification {
       BenValue.parse("i314easd") must beSuccessfulTry(BenInteger(314))
 
       BenValue.parse("i3wrongsymbolse") must beFailedTry
+
+      BenValue.parse("i314") must beFailedTry
     }
 
     "decode bencoded list" in {

@@ -2,15 +2,41 @@ package ben
 
 import scala.util.Try
 
-sealed trait BenValue
+sealed trait BenValue {
+  def encoded: String
+}
 
-case class BenString(value: String) extends BenValue
+case class BenString(value: String) extends BenValue {
+  override def encoded: String = s"${value.length}:$value"
+}
 
-case class BenInteger(value: Long) extends BenValue
+case class BenInteger(value: Long) extends BenValue {
+  override def encoded: String = s"i${value}e"
+}
 
-case class BenList(value: List[BenValue]) extends BenValue
+case class BenList(value: List[BenValue]) extends BenValue {
+  override def encoded: String = {
+    val sb = new StringBuilder
+    sb += 'l'
+    value.foreach(sb ++= _.encoded)
+    sb += 'e'
+    sb.toString
+  }
+}
 
-case class BenDictionary(value: Map[BenString, BenValue]) extends BenValue
+case class BenDictionary(value: Map[BenString, BenValue]) extends BenValue {
+  override def encoded: String = {
+    val sb = new StringBuilder
+    sb += 'd'
+    value.foreach {
+      case (k, v) =>
+        sb ++= k.encoded
+        sb ++= v.encoded
+    }
+    sb += 'e'
+    sb.toString
+  }
+}
 
 object BenString {
   def parse(s: String): Try[BenString] = Try {

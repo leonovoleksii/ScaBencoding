@@ -1,7 +1,6 @@
 package ben
 
-import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 sealed trait BenValue
 
@@ -15,9 +14,9 @@ case class BenDictionary(value: Map[BenString, BenValue]) extends BenValue
 
 object BenValue {
   def parse(s: String): Try[BenValue] = {
-    def parse(f: String => Try[(BenValue, String)]): Try[BenValue] = {
+    def parse(f: String => (BenValue, String)): Try[BenValue] = {
       for {
-        (benValue, _) <- f(s)
+        (benValue, _) <- Try(f(s))
       } yield benValue
     }
 
@@ -29,54 +28,53 @@ object BenValue {
     }
   }
 
-  private def benString(s: String): Try[(BenString, String)] = Try {
+  private def benString(s: String): (BenString, String) = {
     val (lengthOfBenString, benString) = s.splitAt(s.indexOf(':'))
     (BenString(benString.slice(1, lengthOfBenString.toInt + 1)), s.drop(lengthOfBenString.length + lengthOfBenString.toInt + 1))
   }
 
-  private def benInteger(s: String): Try[(BenInteger, String)] = Try {
+  private def benInteger(s: String): (BenInteger, String) = {
     val maybeNumber = s.drop(1).takeWhile(_ != 'e')
-    if (maybeNumber.exists(!_.isDigit)) throw new RuntimeException(s"$maybeNumber is not an integer. Bencoded integer's format is `i<integer encoded in base ten ASCII>e`")
     (BenInteger(maybeNumber.toLong), s.drop(maybeNumber.length + 2))
   }
 
-  private def benList(s: String, acc: List[BenValue] = List.empty[BenValue]): Try[(BenList, String)] = {
-    def parse(f: String => Try[(BenValue, String)]): Try[(BenList, String)] = {
-      f(s) match {
-        case Success((benValue, remainder)) =>
-          benList(remainder, benValue :: acc)
-      }
+  private def benList(s: String, acc: List[BenValue] = List.empty[BenValue]): (BenList, String) = {
+    s.head match {
+      case c if c.isDigit =>
+        val (string, remainder) = benString(s)
+        benList(remainder, string :: acc)
+      case 'i' =>
+        val (integer, remainder) = benInteger(s)
+        benList(remainder, integer :: acc)
+      case 'l' =>
+        val (list, remainder) = benList(s.tail)
+        benList(remainder, list :: acc)
+      case 'd' =>
+        val (dictionary, remainder) = benDictionary(s.tail)
+        benList(remainder, dictionary :: acc)
+      case 'e' => (BenList(acc.reverse), s.tail)
     }
-
-    Try {
-      s.head match {
-        case c if c.isDigit => parse(benString)
-        case 'i' => parse(benInteger)
-        case 'l' => parse(s => benList(s.tail))
-        case 'd' => parse(s => benDictionary(s.tail))
-        case 'e' => Try((BenList(acc.reverse), s.tail))
-      }
-    }.flatten
   }
 
-  private def benDictionary(s: String, acc: Map[BenString, BenValue] = Map.empty[BenString, BenValue]): Try[(BenDictionary, String)] = {
-    def parse(benKey: BenString, remainder: String, f: String => Try[(BenValue, String)]): Try[(BenDictionary, String)] = {
-      f(remainder) match {
-        case Success((benValue, remainder)) =>
-          benDictionary(remainder, acc + (benKey -> benValue))
+  private def benDictionary(s: String, acc: Map[BenString, BenValue] = Map.empty[BenString, BenValue]): (BenDictionary, String) = {
+    if (s.head == 'e') {
+      (BenDictionary(acc), s.tail)
+    } else {
+      val (benKey, benValueRemainder) = benString(s)
+      benValueRemainder.head match {
+        case c if c.isDigit =>
+          val (string, remainder) = benString(benValueRemainder)
+          benDictionary(remainder, acc + (benKey -> string))
+        case 'i' =>
+          val (integer, remainder) = benInteger(benValueRemainder)
+          benDictionary(remainder, acc + (benKey -> integer))
+        case 'l' =>
+          val (list, remainder) = benList(benValueRemainder.tail)
+          benDictionary(remainder, acc + (benKey -> list))
+        case 'd' =>
+          val (dictionary, remainder) = benDictionary(benValueRemainder.tail)
+          benDictionary(remainder, acc + (benKey -> dictionary))
       }
     }
-
-    if (s.head == 'e') {
-      Try((BenDictionary(acc), s.tail))
-    } else for {
-      (benKey, remainder) <- benString(s)
-      benValue <- Try(remainder.head match {
-        case c if c.isDigit => parse(benKey, remainder, benString)
-        case 'i' => parse(benKey, remainder, benInteger)
-        case 'l' => parse(benKey, remainder, s => benList(s.tail))
-        case 'd' => parse(benKey, remainder, s => benDictionary(s.tail))
-      }).flatten
-    } yield benValue
   }
 }

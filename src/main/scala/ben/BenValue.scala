@@ -12,6 +12,22 @@ case class BenList(value: List[BenValue]) extends BenValue
 
 case class BenDictionary(value: Map[BenString, BenValue]) extends BenValue
 
+object BenString {
+  def parse(s: String): Try[BenString] = Try(BenValue.benString(s)._1)
+}
+
+object BenInteger {
+  def parse(s: String): Try[BenInteger] = Try(BenValue.benInteger(s)._1)
+}
+
+object BenList {
+  def parse(s: String): Try[BenList] = Try(BenValue.benList(s.tail)._1)
+}
+
+object BenDictionary {
+  def parse(s: String): Try[BenDictionary] = Try(BenValue.benDictionary(s.tail)._1)
+}
+
 object BenValue {
   def parse(s: String): Try[BenValue] = {
     def parse(f: String => (BenValue, String)): Try[BenValue] = {
@@ -28,17 +44,17 @@ object BenValue {
     }
   }
 
-  private def benString(s: String): (BenString, String) = {
+  private[ben] def benString(s: String): (BenString, String) = {
     val (lengthOfBenString, benString) = s.splitAt(s.indexOf(':'))
     (BenString(benString.slice(1, lengthOfBenString.toInt + 1)), s.drop(lengthOfBenString.length + lengthOfBenString.toInt + 1))
   }
 
-  private def benInteger(s: String): (BenInteger, String) = {
+  private[ben] def benInteger(s: String): (BenInteger, String) = {
     val maybeNumber = s.drop(1).takeWhile(_ != 'e')
     (BenInteger(maybeNumber.toLong), s.drop(maybeNumber.length + 2))
   }
 
-  private def benList(s: String, acc: List[BenValue] = List.empty[BenValue]): (BenList, String) = {
+  private[ben] def benList(s: String, acc: List[BenValue] = List.empty[BenValue]): (BenList, String) = {
     s.head match {
       case c if c.isDigit =>
         val (string, remainder) = benString(s)
@@ -56,7 +72,7 @@ object BenValue {
     }
   }
 
-  private def benDictionary(s: String, acc: Map[BenString, BenValue] = Map.empty[BenString, BenValue]): (BenDictionary, String) = {
+  private[ben] def benDictionary(s: String, acc: Map[BenString, BenValue] = Map.empty[BenString, BenValue]): (BenDictionary, String) = {
     if (s.head == 'e') {
       (BenDictionary(acc), s.tail)
     } else {

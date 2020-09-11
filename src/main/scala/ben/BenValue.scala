@@ -13,19 +13,43 @@ case class BenList(value: List[BenValue]) extends BenValue
 case class BenDictionary(value: Map[BenString, BenValue]) extends BenValue
 
 object BenString {
-  def parse(s: String): Try[BenString] = Try(BenValue.benString(s)._1)
+  def parse(s: String): Try[BenString] = Try {
+    if (s.head.isDigit) {
+      BenValue.benString(s)._1
+    } else {
+      throw new RuntimeException(s"Expected bencoded string (<string length>:<string data>): $s")
+    }
+  }
 }
 
 object BenInteger {
-  def parse(s: String): Try[BenInteger] = Try(BenValue.benInteger(s)._1)
+  def parse(s: String): Try[BenInteger] = Try {
+    if (s.startsWith("i")) {
+      BenValue.benInteger(s)._1
+    } else {
+      throw new RuntimeException(s"Expected bencoded integer (i<integer>e): $s")
+    }
+  }
 }
 
 object BenList {
-  def parse(s: String): Try[BenList] = Try(BenValue.benList(s.tail)._1)
+  def parse(s: String): Try[BenList] = Try {
+    if (s.startsWith("l")) {
+      BenValue.benList(s.tail)._1
+    } else {
+      throw new RuntimeException(s"Expected bencoded list (l<bencoded values>e): $s")
+    }
+  }
 }
 
 object BenDictionary {
-  def parse(s: String): Try[BenDictionary] = Try(BenValue.benDictionary(s.tail)._1)
+  def parse(s: String): Try[BenDictionary] = Try {
+    if (s.startsWith("d")) {
+      BenValue.benDictionary(s.tail)._1
+    } else {
+      throw new RuntimeException(s"Expected bencoded dictionary (d<bencoded string><bencoded value>e): $s")
+    }
+  }
 }
 
 object BenValue {

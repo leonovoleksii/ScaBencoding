@@ -14,6 +14,7 @@ class EncodeTest extends Specification {
     "be encodable" in {
       BenInteger(314).encoded must beEqualTo("i314e")
       BenInteger(1024).encoded must beEqualTo("i1024e")
+      BenInteger(-314).encoded must beEqualTo("i-314e")
     }
   }
 

@@ -1,4 +1,4 @@
-package ben
+package io.github.leonovoleksii.ben
 
 import org.specs2.mutable.Specification
 
